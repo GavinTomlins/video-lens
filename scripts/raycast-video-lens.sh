@@ -26,10 +26,13 @@ fi
 
 ytURL="$(printf '%s' "$ytURL" | tr -dc 'A-Za-z0-9/:?=&._%-')"
 
-# Model aliases resolve to the current model of each tier — no dated IDs to rot
+# Model aliases resolve to the current model of each tier — no dated IDs to
+# rot. One assignment per tier: install-raycast rewrites these lines for
+# agents that need concrete model ids (see Taskfile.yml).
 case "$2" in
-  haiku|opus) modelId="$2" ;;
-  *)          modelId="sonnet" ;;
+  haiku) modelId="haiku" ;;
+  opus)  modelId="opus" ;;
+  *)     modelId="sonnet" ;;
 esac
 
 # Detect iTerm2 from bash, and keep the iTerm2 tell-block in a script that is
