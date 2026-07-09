@@ -118,6 +118,8 @@ def test_template_placeholders(tmp_path):
         "KEY_POINTS":          "TEST_KEY_POINTS",
         "OUTLINE":             "TEST_OUTLINE",
         "DESCRIPTION_SECTION": "TEST_DESCRIPTION_SECTION",
+        "REFERENCES_SECTION":  "TEST_REFERENCES_SECTION",
+        "RELATED_SECTION":     "TEST_RELATED_SECTION",
         "VIDEO_LENS_META":     SAMPLE_META,
     }, str(out), template_path=TEMPLATE)
     html = out.read_text(encoding="utf-8")
@@ -185,6 +187,61 @@ def test_sanitise_payload_rejects_event_handler():
         sample_render_payload(KEY_POINTS='<li onclick="x">y</li>'),
     )
     assert "event handler onclick" in detail
+
+
+REFERENCES_SAMPLE = (
+    "<strong>Tools</strong><ul>"
+    '<li><a href="https://www.hammerspoon.org/" target="_blank" rel="noopener noreferrer">'
+    "Hammerspoon</a> — Lua automation for macOS.</li></ul><br>"
+    "<strong>Code</strong><ul>"
+    '<li><a href="https://github.com/omerxx/dotfiles" target="_blank" rel="noopener noreferrer">'
+    "omerxx/dotfiles</a> — The speaker's config.</li></ul>"
+)
+
+
+def test_references_and_related_render(tmp_path):
+    """REFERENCES_SECTION / RELATED_SECTION pass the sanitiser and land in the page."""
+    out = tmp_path / "report.html"
+    related = (
+        "<strong>Keep Watching</strong><ul>"
+        '<li><a href="https://www.youtube.com/results?search_query=hammerspoon" '
+        'target="_blank" rel="noopener noreferrer">Hammerspoon tutorials</a> — search.</li></ul>'
+    )
+    payload = sample_render_payload(
+        REFERENCES_SECTION=REFERENCES_SAMPLE, RELATED_SECTION=related)
+    render_from_payload(payload, str(out), template_path=TEMPLATE)
+    html = out.read_text(encoding="utf-8")
+    assert "https://www.hammerspoon.org/" in html
+    assert "search_query=hammerspoon" in html
+    assert '<section id="references">' in html
+    assert '<section id="related">' in html
+
+
+def test_references_omitted_renders_empty_section(tmp_path):
+    """Payloads without the optional sections still render (empty sections,
+    which the page JS then hides)."""
+    out = tmp_path / "report.html"
+    render_from_payload(sample_render_payload(), str(out), template_path=TEMPLATE)
+    html = out.read_text(encoding="utf-8")
+    assert "{{REFERENCES_SECTION}}" not in html
+    assert "{{RELATED_SECTION}}" not in html
+
+
+def test_references_section_rejects_script():
+    detail = assert_render_validation(
+        "RENDER_DISALLOWED_HTML",
+        sample_render_payload(REFERENCES_SECTION="<script>alert(1)</script>"),
+    )
+    assert "key=REFERENCES_SECTION" in detail
+
+
+def test_related_section_rejects_non_http_url():
+    detail = assert_render_validation(
+        "RENDER_DISALLOWED_HTML",
+        sample_render_payload(
+            RELATED_SECTION='<ul><li><a href="javascript:alert(1)">x</a></li></ul>'),
+    )
+    assert "key=RELATED_SECTION" in detail
 
 
 def test_sanitise_payload_rejects_invalid_video_id():
@@ -457,6 +514,8 @@ def test_render_and_serve(tmp_path):
         "KEY_POINTS":          "<li><strong>Point</strong> — detail</li>",
         "OUTLINE":             f'<li><a class="ts" data-t="0" href="https://www.youtube.com/watch?v={VIDEO_ID}&t=0" target="_blank">▶ 0:00</a> — <span class="outline-title">Intro</span><span class="outline-detail"> Opening.</span></li>',
         "DESCRIPTION_SECTION": "",
+        "REFERENCES_SECTION":  "",
+        "RELATED_SECTION":     "",
         "VIDEO_LENS_META":     SAMPLE_META,
     }, str(out), template_path=TEMPLATE)
     assert out.exists()
@@ -501,6 +560,8 @@ def test_serve_takes_over_untracked_server(tmp_path):
         "KEY_POINTS":          "<li><strong>Point</strong> — detail</li>",
         "OUTLINE":             f'<li><a class="ts" data-t="0" href="https://www.youtube.com/watch?v={VIDEO_ID}&t=0" target="_blank">▶ 0:00</a> — <span class="outline-title">Intro</span><span class="outline-detail"> Opening.</span></li>',
         "DESCRIPTION_SECTION": "",
+        "REFERENCES_SECTION":  "",
+        "RELATED_SECTION":     "",
         "VIDEO_LENS_META":     SAMPLE_META,
     }, str(out), template_path=TEMPLATE)
 

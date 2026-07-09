@@ -15,7 +15,9 @@ Renderer builds VIDEO_LENS_META from agent-authored content. Optional fields:
     META_LINE (auto-composed from CHANNEL/DURATION/PUBLISH_DATE/VIEWS if omitted),
     TAGS (list), CHANNEL, DURATION, PUBLISH_DATE, VIEWS, GENERATION_DATE,
     GENERATION_DURATION_SECONDS, GENERATION_START_EPOCH, AGENT_MODEL,
-    SLUG_HINT (ascii slug used for filename when title has no ascii letters).
+    SLUG_HINT (ascii slug used for filename when title has no ascii letters),
+    REFERENCES_SECTION, RELATED_SECTION (grouped link-list HTML; empty or
+    omitted hides the corresponding tab in the report).
 
 With --output-dir, the renderer derives the filename
 ``YYYY-MM-DD-HHMMSS-video-lens_<VIDEO_ID>_<slug>.html`` from VIDEO_TITLE,
@@ -51,10 +53,12 @@ def _schema_help() -> str:
         "EXPECTED_KEYS=" + ",".join(sorted(EXPECTED_KEYS))
         + " REQUIRED_NONEMPTY=" + ",".join(REQUIRED_NONEMPTY)
         + " GENERATION_DATE optional (YYYY-MM-DD; defaults to today with --output-dir)"
+        + " REFERENCES_SECTION/RELATED_SECTION optional HTML (empty hides the tab)"
     )
 
 PLAINTEXT_KEYS = ("VIDEO_TITLE", "META_LINE", "SUMMARY", "TAKEAWAY")
-HTML_KEYS = ("KEY_POINTS", "OUTLINE", "DESCRIPTION_SECTION")
+HTML_KEYS = ("KEY_POINTS", "OUTLINE", "DESCRIPTION_SECTION",
+             "REFERENCES_SECTION", "RELATED_SECTION")
 
 ALLOWED_TAGS_BY_KEY = {
     "KEY_POINTS": {
@@ -78,6 +82,24 @@ ALLOWED_TAGS_BY_KEY = {
         "p": set(),
         "strong": set(),
         "em": set(),
+    },
+    # References / Related Videos: grouped link lists —
+    # <strong>Category</strong><ul><li><a href>Name</a> — note</li></ul><br>
+    "REFERENCES_SECTION": {
+        "strong": set(),
+        "ul": set(),
+        "li": set(),
+        "br": set(),
+        "em": set(),
+        "a": {"href", "target", "rel"},
+    },
+    "RELATED_SECTION": {
+        "strong": set(),
+        "ul": set(),
+        "li": set(),
+        "br": set(),
+        "em": set(),
+        "a": {"href", "target", "rel"},
     },
 }
 

@@ -13,7 +13,7 @@ metadata:
 
 > **Step 4 is the authoritative spec.** This block is a compaction-safety net — if it diverges from Step 4, trust Step 4.
 
-Render payload must include all of: `VIDEO_ID, VIDEO_TITLE, VIDEO_URL, SUMMARY, KEY_POINTS, TAKEAWAY, OUTLINE, DESCRIPTION_SECTION`. `GENERATION_DATE` (`YYYY-MM-DD`) and `META_LINE` are optional — omit `GENERATION_DATE` and the renderer defaults to today. Build via `Write` to the `PAYLOAD_PATH` from Step 1, then `render_report.py --payload-file <path> --output-dir <dir>` — never heredoc.
+Render payload must include all of: `VIDEO_ID, VIDEO_TITLE, VIDEO_URL, SUMMARY, KEY_POINTS, TAKEAWAY, OUTLINE, DESCRIPTION_SECTION`. `GENERATION_DATE` (`YYYY-MM-DD`), `META_LINE`, `REFERENCES_SECTION`, and `RELATED_SECTION` are optional — omit `GENERATION_DATE` and the renderer defaults to today; empty/omitted sections hide their tabs. Build via `Write` to the `PAYLOAD_PATH` from Step 1, then `render_report.py --payload-file <path> --output-dir <dir>` — never heredoc.
 
 Run `python3 .../render_report.py --schema` to print the live schema.
 
@@ -159,6 +159,10 @@ Rules:
 
 **Otherwise:** create one outline entry for each major topic shift or distinct segment in the video. Let the video's natural structure determine the number of entries (see Length adjustments below for typical ranges). Do not pad with minor sub-topics to hit a target count, and do not merge distinct topics to stay under a cap.
 
+**References** *(optional section)* — A grouped list of links to the tools, projects, papers, and sources the video actually discusses. **Every URL must be real — a fabricated link is worse than no link.** Allowed sources, in order of preference: (1) URLs present in `YTDLP_DESC_HTML`, copied verbatim; (2) canonical homepages of tools/projects named in the transcript that you know with certainty (e.g. `https://www.hammerspoon.org/`, `https://modelcontextprotocol.io/`) — top-level domains only, never guessed deep links, GitHub repos, or blog-post URLs unless they appear in the description. Group 2–6 links under 1–4 `<strong>` category headings. When nothing qualifies, use `""` — the report hides the tab.
+
+**Related Videos** *(optional section)* — Where to go next on the same topic. **Never invent YouTube video URLs** — a made-up `watch?v=` ID is a broken link. Allowed entries: (1) YouTube video links present in `YTDLP_DESC_HTML`, copied verbatim; (2) YouTube search links in the form `https://www.youtube.com/results?search_query=...` labelled as a search (e.g. "More from DevOps Toolbox" or "Hammerspoon window management tutorials") — pick 2–4 searches a viewer would plausibly run next. When nothing useful exists, use `""` — the report hides the tab.
+
 **Tags** — 3–5 short, lowercase topic category labels for the index (e.g. "ai", "hardware", "machine learning", "economics", "history"). Think of these as broad genre/domain tags a viewer would use to filter a list. Rules: (1) prefer broader terms over narrower sub-categories — use "hardware" not "memory hardware"; (2) avoid overlap — do not emit two tags that are sub-topics of the same concept, e.g. use "llm" instead of both "llm engineering" and "context engineering"; (3) each tag must be meaningfully distinct from every other tag in the set; (4) prefer a tag from the `EXISTING_TAGS` list (from Step 1's preflight output) when one fits the video — invent a new tag only when nothing in that list matches, so the gallery's filter vocabulary stays consistent instead of fragmenting into near-duplicates. Bad example: `["hardware", "memory hardware", "llm engineering", "context engineering"]` → Good: `["hardware", "llm"]`. Separate from key-point keywords.
 
 #### Quality Guidelines
@@ -192,6 +196,8 @@ Fields to provide:
 | `KEY_POINTS` | **Single HTML string** (not a JSON array) — concatenate all `<li>` blocks into one string. Each item: `<strong>term</strong> — one-sentence insight`, each followed by a `<p>` analytical paragraph (may be omitted for discrete facts/steps). Optionally with `<em>` |
 | `OUTLINE` | **Single HTML string** (not a JSON array) — concatenate one `<li>` per topic into one string: `<li><a class="ts" data-t="SECONDS" href="https://www.youtube.com/watch?v=VIDEOID&t=SECONDS" target="_blank" rel="noopener noreferrer">▶ M:SS</a> — <span class="outline-title">Short Title</span><span class="outline-detail">Detail sentence.</span></li>` (where `VIDEOID` = the actual video ID). Title: 3–8 words, scannable. Detail: one sentence of context. (Use the same timestamp format as the transcript lines — `M:SS` or `H:MM:SS`; `data-t` and `&t=` always use raw seconds.) |
 | `DESCRIPTION_SECTION` | **Single HTML string** (not a JSON array). When `YTDLP_DESC_HTML` is non-empty: `<details class="description-details"><summary>YouTube Description</summary><div class="video-description">YTDLP_DESC_HTML</div></details>` with the HTML-safe, linkified description text embedded inline. Otherwise: `""` (empty string — nothing rendered) |
+| `REFERENCES_SECTION` *(optional)* | **Single HTML string** — grouped link list from Step 3's References: `<strong>Category</strong><ul><li><a href="https://…" target="_blank" rel="noopener noreferrer">Name</a> — one-line note</li>…</ul>` with `<br>` between groups. Real URLs only (see Step 3 rules). `""` or omitted hides the tab |
+| `RELATED_SECTION` *(optional)* | **Single HTML string** — same structure as `REFERENCES_SECTION`, built from Step 3's Related Videos rules (description links verbatim, or `youtube.com/results?search_query=…` search links — never invented `watch?v=` IDs). `""` or omitted hides the tab |
 | `TAGS` | JSON array of 3–5 lowercase topic tags from Step 3 (e.g. `["ai", "hardware"]`) — used by the gallery for filtering |
 | `META_LINE` *(optional)* | Omit and the renderer composes from `CHANNEL · DURATION · PUBLISH_DATE · VIEWS`. Provide explicitly only to override — e.g. when `LANG_WARN:` was seen, set to `<channel> · <duration> · <published> · <views> · ⚠ Requested language not available`. |
 | `SLUG_HINT` *(optional)* | Short ascii slug used in the derived filename when the title has no ascii letters (e.g. CJK titles). Provide a transliteration like `"ai_safety_talk"`; renderer normalizes to `[a-z0-9_]{1,60}`. Omit and the renderer derives the slug from `VIDEO_TITLE` (falls back to `video` for purely non-ascii titles). |
@@ -209,7 +215,7 @@ The renderer:
 - Derives the filename and saves it under the `REPORTS_DIR` from Step 1 (default `~/Downloads/video-lens/reports/`).
 - Builds the `VIDEO_LENS_META` block — you do NOT construct that JSON.
 
-**Tag allowlist.** Values for `SUMMARY`, `TAKEAWAY`, `META_LINE`, and `VIDEO_TITLE` are plain text — no HTML. Values for `KEY_POINTS`, `OUTLINE`, and `DESCRIPTION_SECTION` are allowlist-sanitised by `render_report.py`; emit only the structures shown in the value descriptions above. No `<script>`, `<style>`, `<iframe>`, comments, inline event handlers, non-HTTP URLs, or outline links to a different video.
+**Tag allowlist.** Values for `SUMMARY`, `TAKEAWAY`, `META_LINE`, and `VIDEO_TITLE` are plain text — no HTML. Values for `KEY_POINTS`, `OUTLINE`, `DESCRIPTION_SECTION`, `REFERENCES_SECTION`, and `RELATED_SECTION` are allowlist-sanitised by `render_report.py`; emit only the structures shown in the value descriptions above. No `<script>`, `<style>`, `<iframe>`, comments, inline event handlers, non-HTTP URLs, or outline links to a different video.
 
 **Common rejection causes:**
 

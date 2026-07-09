@@ -130,6 +130,28 @@ CONTENT = {
         "</details>"
     ),
 
+    "REFERENCES_SECTION": (
+        "<strong>Technology &amp; Platforms</strong><ul>"
+        '<li><a href="https://aws.amazon.com/" target="_blank" rel="noopener noreferrer">AWS</a> '
+        "— The cloud platform whose architectural principles anchor the keynote.</li>"
+        '<li><a href="https://go.aws/events" target="_blank" rel="noopener noreferrer">AWS Events</a> '
+        "— Upcoming AWS conferences and online sessions.</li>"
+        "</ul><br><strong>Concepts</strong><ul>"
+        '<li><a href="https://en.wikipedia.org/wiki/Conway%27s_law" target="_blank" rel="noopener noreferrer">'
+        "Conway's Law</a> — Organisations design systems that mirror their communication structure.</li>"
+        "</ul>"
+    ),
+    "RELATED_SECTION": (
+        "<strong>Keep Watching</strong><ul>"
+        '<li><a href="https://www.youtube.com/results?search_query=werner+vogels+keynote" '
+        'target="_blank" rel="noopener noreferrer">Werner Vogels keynotes</a> '
+        "— More annual re:Invent keynotes from the same speaker.</li>"
+        '<li><a href="https://www.youtube.com/results?search_query=aws+well+architected+framework" '
+        'target="_blank" rel="noopener noreferrer">AWS Well-Architected framework</a> '
+        "— Deep dives on the architecture principles referenced in the talk.</li>"
+        "</ul>"
+    ),
+
     "TAGS": ["ai", "cloud", "software architecture", "developer culture"],
     "CHANNEL": "AWS Events",
     "DURATION": "1h 16m",

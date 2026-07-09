@@ -1132,6 +1132,8 @@
         <a href="#summary" class="active">Summary</a>
         <a href="#takeaway">Takeaway</a>
         <a href="#key-points">Key Points</a>
+        <a href="#references">References</a>
+        <a href="#related">Related</a>
         <div class="nav-actions">
           <button id="md-export-btn" class="icon-btn" aria-label="Export as Markdown" title="Export as Markdown">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -1173,6 +1175,16 @@
         <ul>
           {{KEY_POINTS}}
         </ul>
+      </section>
+
+      <section id="references">
+        <h2>References</h2>
+        {{REFERENCES_SECTION}}
+      </section>
+
+      <section id="related">
+        <h2>Related Videos</h2>
+        {{RELATED_SECTION}}
       </section>
 
     </div>
@@ -1717,6 +1729,24 @@
         }
       })();
 
+      // References/Related are optional — remove the tab and section when the
+      // run produced no content for them (must run before the scrollspy below
+      // snapshots the nav links and sections).
+      ['references', 'related'].forEach(function (id) {
+        var sec = document.getElementById(id);
+        if (!sec) return;
+        var hasContent = Array.from(sec.children).some(function (el) {
+          return el.tagName !== 'H2' && el.textContent.trim() !== '';
+        }) || Array.from(sec.childNodes).some(function (n) {
+          return n.nodeType === 3 && n.textContent.trim() !== '';
+        });
+        if (!hasContent) {
+          var link = document.querySelector('.section-nav a[href="#' + id + '"]');
+          if (link) link.remove();
+          sec.remove();
+        }
+      });
+
       (function () {
         var navLinks = document.querySelectorAll('.section-nav a');
         var clicking = false;
@@ -1751,7 +1781,9 @@
       var SECTION_TOOLTIPS = {
         'summary': 'A short overview of the video\'s core argument and conclusion.',
         'takeaway': 'The one thing to take away — going further than the summary.',
-        'key-points': 'Key concepts and insights — each with analytical depth added.'
+        'key-points': 'Key concepts and insights — each with analytical depth added.',
+        'references': 'Links to the tools, projects, and sources mentioned in the video.',
+        'related': 'Where to go next — related videos and searches.'
       };
 
       // Open all links in the YouTube description in a new tab
@@ -1810,6 +1842,33 @@
         // Takeaway
         var takeaway = document.querySelector('#takeaway p').innerText;
 
+        // References / Related Videos (optional — sections are removed when empty)
+        function linkSectionMd(id) {
+          var sec = document.getElementById(id);
+          if (!sec) return '';
+          var out = [];
+          Array.from(sec.children).forEach(function (el) {
+            if (el.tagName === 'STRONG') out.push('**' + el.innerText.trim() + '**');
+            if (el.tagName === 'UL') {
+              Array.from(el.querySelectorAll('li')).forEach(function (li) {
+                var a = li.querySelector('a');
+                var text = li.innerText.trim();
+                if (a) {
+                  var label = a.innerText.trim();
+                  var rest = text.replace(label, '').replace(/^\s*—?\s*/, '').trim();
+                  out.push('- [' + label + '](' + a.href + ')' + (rest ? ' — ' + rest : ''));
+                } else {
+                  out.push('- ' + text);
+                }
+              });
+              out.push('');
+            }
+          });
+          return out.join('\n').trim();
+        }
+        var referencesMd = linkSectionMd('references');
+        var relatedMd = linkSectionMd('related');
+
         // Outline — each li has data-t (seconds), .outline-title and optional .outline-detail
         var outline = Array.from(document.querySelectorAll('.topics li')).map(function (li) {
           var tsEl = li.querySelector('a.ts');
@@ -1864,7 +1923,9 @@
           '## Key Points',
           '',
           keyPoints,
-        ].concat(description ? ['', '## YouTube Description', '', description] : [])
+        ].concat(referencesMd ? ['', '## References', '', referencesMd] : [])
+         .concat(relatedMd ? ['', '## Related Videos', '', relatedMd] : [])
+         .concat(description ? ['', '## YouTube Description', '', description] : [])
          .concat(genFooter)
          .join('\n');
 
