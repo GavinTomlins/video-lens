@@ -12,7 +12,9 @@ import pathlib
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
 TEMPLATE_PATH = REPO_ROOT / "skills" / "video-lens" / "template.html"
-OUTPUT_PATH = os.path.expanduser('~/Downloads/video-lens/reports/video-lens_sample_output.html')
+_OUTPUT_ROOT = os.environ.get("VIDEO_LENS_DIR", "").strip() or "~/Downloads/video-lens"
+OUTPUT_PATH = os.path.join(
+    os.path.expanduser(_OUTPUT_ROOT), "reports", "video-lens_sample_output.html")
 
 sys.path.insert(0, str(REPO_ROOT / "skills" / "video-lens" / "scripts"))
 from render_report import render_from_payload  # noqa: E402

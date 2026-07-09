@@ -13,7 +13,9 @@ Stdout on success (lines that apply only):
     LANG_CODE: <code or empty>
     START_EPOCH: <int>
     SCRIPTS_DIR: <absolute>      # directory holding the video-lens scripts
-    PAYLOAD_PATH: <absolute>     # ~/Downloads/video-lens/.tmp/payload-XXXX/payload.json (0700 parent, file not pre-created)
+    OUTPUT_ROOT: <absolute>      # $VIDEO_LENS_DIR or ~/Downloads/video-lens
+    REPORTS_DIR: <absolute>      # <OUTPUT_ROOT>/reports
+    PAYLOAD_PATH: <absolute>     # <OUTPUT_ROOT>/.tmp/payload-XXXX/payload.json (0700 parent, file not pre-created)
     DUPLICATE_PATH: <absolute>   # newest match by mtime, if any
     EXISTING_TAGS: a, b, c, …    # top tags across saved reports (omitted when no manifest yet)
 
@@ -23,6 +25,7 @@ Stderr + non-zero exit on:
 """
 import argparse
 import json
+import os
 import pathlib
 import re
 import shutil
@@ -31,10 +34,21 @@ import tempfile
 import time
 from urllib.parse import parse_qs, urlparse
 
+
+def _video_lens_root() -> pathlib.Path:
+    """Output root: $VIDEO_LENS_DIR when set (e.g. an Obsidian vault folder),
+    else ~/Downloads/video-lens. Kept identical in render_report.py."""
+    env = os.environ.get("VIDEO_LENS_DIR", "").strip()
+    if env:
+        return pathlib.Path(env).expanduser()
+    return pathlib.Path.home() / "Downloads" / "video-lens"
+
+
 VIDEO_ID_RE = re.compile(r"^[A-Za-z0-9_-]{11}$")
-REPORTS_DIR = pathlib.Path.home() / "Downloads" / "video-lens" / "reports"
-MANIFEST_PATH = pathlib.Path.home() / "Downloads" / "video-lens" / "manifest.json"
-PAYLOAD_BASE_DIR = pathlib.Path.home() / "Downloads" / "video-lens" / ".tmp"
+OUTPUT_ROOT = _video_lens_root()
+REPORTS_DIR = OUTPUT_ROOT / "reports"
+MANIFEST_PATH = OUTPUT_ROOT / "manifest.json"
+PAYLOAD_BASE_DIR = OUTPUT_ROOT / ".tmp"
 PAYLOAD_TTL_SECONDS = 7 * 24 * 60 * 60  # sweep payload-* dirs older than ~7 days
 EXISTING_TAGS_LIMIT = 40  # how many of the most-common tags to feed back to Step 3
 
@@ -159,13 +173,13 @@ def read_existing_tags(
 
 
 def find_duplicate(video_id: str) -> pathlib.Path | None:
-    if not REPORTS_DIR.is_dir():
-        return None
-    matches = sorted(
-        REPORTS_DIR.glob(f"*video-lens*{video_id}*.html"),
-        key=lambda p: p.stat().st_mtime,
-        reverse=True,
-    )
+    # Also scan the root above reports/ — reports saved by older layouts
+    # (or an existing vault) sit flat there, matching build_index's legacy scan.
+    matches = []
+    for directory in (REPORTS_DIR, REPORTS_DIR.parent):
+        if directory.is_dir():
+            matches.extend(directory.glob(f"*video-lens*{video_id}*.html"))
+    matches.sort(key=lambda p: p.stat().st_mtime, reverse=True)
     return matches[0] if matches else None
 
 
@@ -204,6 +218,8 @@ def main() -> int:
     print(f"LANG_CODE: {lang_code}")
     print(f"START_EPOCH: {start_epoch}")
     print(f"SCRIPTS_DIR: {scripts_dir}")
+    print(f"OUTPUT_ROOT: {OUTPUT_ROOT.expanduser()}")
+    print(f"REPORTS_DIR: {REPORTS_DIR.expanduser()}")
     print(f"PAYLOAD_PATH: {payload_path}")
     if dup is not None:
         print(f"DUPLICATE_PATH: {dup}")

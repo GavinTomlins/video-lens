@@ -151,7 +151,18 @@ The gallery opens at `~/Downloads/video-lens/index.html`.
 
 Invoke the **video-lens** command, paste a YouTube URL (or leave blank to use the clipboard), and choose a model (default: Sonnet). The report opens automatically in your browser.
 
-Reports are saved to `~/Downloads/video-lens/reports/`.
+Reports are saved to `~/Downloads/video-lens/reports/` by default (see below to change this).
+
+### Custom output location (`VIDEO_LENS_DIR`)
+
+Set `VIDEO_LENS_DIR` to move the whole library — reports, gallery index, manifest — somewhere else, e.g. into an Obsidian vault:
+
+```bash
+# e.g. in ~/.zshenv so GUI-launched terminals see it too
+export VIDEO_LENS_DIR="$HOME/path/to/vault/videos"
+```
+
+New reports land in `$VIDEO_LENS_DIR/reports/`, the gallery serves from `$VIDEO_LENS_DIR`, and duplicate detection also recognises reports sitting flat in the root (older layouts). The renderer's output-path guard follows the configured root. Unset, everything defaults to `~/Downloads/video-lens`.
 
 ---
 

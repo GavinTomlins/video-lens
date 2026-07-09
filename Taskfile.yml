@@ -1,7 +1,8 @@
 version: '3'
 
 vars:
-  REPORTS_DIR: '{{.REPORTS_DIR | default (printf "%s/Downloads/video-lens" (env "HOME"))}}'
+  # Output root precedence: explicit REPORTS_DIR var > $VIDEO_LENS_DIR > ~/Downloads/video-lens
+  REPORTS_DIR: '{{.REPORTS_DIR | default (coalesce (env "VIDEO_LENS_DIR") (printf "%s/Downloads/video-lens" (env "HOME")))}}'
   PORT: '{{.PORT | default "8765"}}'
 
 tasks:
@@ -38,7 +39,7 @@ tasks:
     desc: Run template dev server with sample content
     cmds:
       - python3 scripts/yt_template_dev.py
-      - bash skills/video-lens/scripts/serve_report.sh ~/Downloads/video-lens/reports/video-lens_sample_output.html
+      - bash skills/video-lens/scripts/serve_report.sh "{{.REPORTS_DIR}}/reports/video-lens_sample_output.html" "{{.REPORTS_DIR}}"
 
   install-raycast:
     desc: "Copy scripts/raycast-video-lens.sh to ~/.raycast/scripts/ (AGENT=claude|gemini|codex|cursor|opencode|copilot)"

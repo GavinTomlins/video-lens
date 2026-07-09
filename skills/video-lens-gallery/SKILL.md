@@ -33,12 +33,14 @@ done)
 [ -z "$_gd" ] && echo "video-lens-gallery skill not found — install it first: npx skills add GavinTomlins/video-lens" && exit 1
 ```
 
+All steps resolve the reports root the same way: `$VIDEO_LENS_DIR` when set (e.g. an Obsidian vault folder), else `~/Downloads/video-lens`.
+
 ## Step 2 — Backfill metadata (only if requested)
 
 If the user's request mentions "backfill", run:
 
 ```bash
-python3 "$_gd/backfill_meta.py" --dir ~/Downloads/video-lens
+python3 "$_gd/backfill_meta.py" --dir "${VIDEO_LENS_DIR:-$HOME/Downloads/video-lens}"
 ```
 
 ## Step 3 — Rebuild index
@@ -46,8 +48,9 @@ python3 "$_gd/backfill_meta.py" --dir ~/Downloads/video-lens
 Check that the reports directory exists before running:
 
 ```bash
-[ -d ~/Downloads/video-lens ] || { echo "No reports directory found — save some videos first with the video-lens skill."; exit 1; }
-python3 "$_gd/build_index.py" --dir ~/Downloads/video-lens
+_root="${VIDEO_LENS_DIR:-$HOME/Downloads/video-lens}"
+[ -d "$_root" ] || { echo "No reports directory found — save some videos first with the video-lens skill."; exit 1; }
+python3 "$_gd/build_index.py" --dir "$_root"
 ```
 
 Tell the user the number of reports indexed, from the script's output.
@@ -55,7 +58,8 @@ Tell the user the number of reports indexed, from the script's output.
 ## Step 4 — Serve gallery
 
 ```bash
-bash "$_sd/serve_report.sh" ~/Downloads/video-lens/index.html ~/Downloads/video-lens
+_root="${VIDEO_LENS_DIR:-$HOME/Downloads/video-lens}"
+bash "$_sd/serve_report.sh" "$_root/index.html" "$_root"
 ```
 
 If `serve_report.sh` prints an `ERROR:` line (e.g. `ERROR:SERVE_PORT_BUSY` when port 8765 is held by another program), report the message and stop. Otherwise — confirmed by its `HTML_REPORT:` line — tell the user the gallery is now available at `http://localhost:8765/index.html`.

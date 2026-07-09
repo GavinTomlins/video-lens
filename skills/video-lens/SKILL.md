@@ -23,7 +23,7 @@ Script invocations (the `--` guards video IDs that start with `-` — keep it):
 - `python3 .../fetch_metadata.py -- <VIDEO_ID>`
 - `python3 .../transcribe_local.py [--language L] [--model M] -- <VIDEO_ID>` *(fallback only — see Step 2a fallback)*
 - `python3 .../render_report.py --payload-file <path> --output-dir <dir>`
-- `bash .../serve_report.sh <html-path>` *(bash script — never invoke with `python3`)*
+- `bash .../serve_report.sh <html-path> <output-root>` *(bash script — never invoke with `python3`)*
 
 ## Bundled scripts
 
@@ -42,13 +42,13 @@ Trigger this skill when the user:
 
 ## Steps
 
-Each numbered step below runs as its own `Bash` tool call, which gets a **fresh shell**. Values you read from one step's output (`VIDEO_ID`, `LANG_CODE`, `SCRIPTS_DIR`, `PAYLOAD_PATH` from Step 1, `OUTPUT_PATH` from Step 4) do **not** survive to the next step as shell variables. When the next step's command references one of these names in quotes, substitute the captured value **as a literal** into the command — do not pass it as `$VAR` expecting expansion.
+Each numbered step below runs as its own `Bash` tool call, which gets a **fresh shell**. Values you read from one step's output (`VIDEO_ID`, `LANG_CODE`, `SCRIPTS_DIR`, `OUTPUT_ROOT`, `REPORTS_DIR`, `PAYLOAD_PATH` from Step 1, `OUTPUT_PATH` from Step 4) do **not** survive to the next step as shell variables. When the next step's command references one of these names in quotes, substitute the captured value **as a literal** into the command — do not pass it as `$VAR` expecting expansion.
 
 Step 2 has two parts (2a transcript, 2b yt-dlp metadata) that depend only on `VIDEO_ID`; issue them in the **same assistant message** so they run concurrently.
 
 ### 1. Preflight — extract video ID, language, and check for duplicates
 
-Run preflight, then read the prefixed lines from its stdout. Save `VIDEO_ID`, `LANG_CODE`, `START_EPOCH`, `SCRIPTS_DIR`, `PAYLOAD_PATH`, and the `EXISTING_TAGS` list (if present) for later steps. The `SCRIPTS_DIR` value replaces the discovery boilerplate from Step 1 in subsequent steps — substitute it as a literal path.
+Run preflight, then read the prefixed lines from its stdout. Save `VIDEO_ID`, `LANG_CODE`, `START_EPOCH`, `SCRIPTS_DIR`, `OUTPUT_ROOT`, `REPORTS_DIR`, `PAYLOAD_PATH`, and the `EXISTING_TAGS` list (if present) for later steps. The `SCRIPTS_DIR` value replaces the discovery boilerplate from Step 1 in subsequent steps — substitute it as a literal path. `OUTPUT_ROOT`/`REPORTS_DIR` are where reports live — `$VIDEO_LENS_DIR` when the user has set it (e.g. an Obsidian vault folder), else `~/Downloads/video-lens` — always use these captured values, never hardcode a path.
 
 ```bash
 _sd=$(for d in ~/.agents ~/.claude ~/.copilot ~/.gemini ~/.cursor ~/.windsurf ~/.opencode ~/.codex; do [ -d "$d/skills/video-lens/scripts" ] && echo "$d/skills/video-lens/scripts" && break; done); [ -z "$_sd" ] && echo "Scripts not found — install from github.com/GavinTomlins/video-lens (see Bundled scripts above)" && exit 1; python3 "$_sd/preflight.py" -- "$USER_INPUT"
@@ -206,7 +206,7 @@ Fields to provide:
 The renderer:
 - Composes `META_LINE` from `CHANNEL` / `DURATION` / `PUBLISH_DATE` / `VIEWS`, omitting blanks. (Set `META_LINE` explicitly only when you need a non-default string, e.g. with the `⚠ Requested language not available` suffix.)
 - Computes `GENERATION_DURATION_SECONDS` from `GENERATION_START_EPOCH`.
-- Derives the filename and saves it under `~/Downloads/video-lens/reports/`.
+- Derives the filename and saves it under the `REPORTS_DIR` from Step 1 (default `~/Downloads/video-lens/reports/`).
 - Builds the `VIDEO_LENS_META` block — you do NOT construct that JSON.
 
 **Tag allowlist.** Values for `SUMMARY`, `TAKEAWAY`, `META_LINE`, and `VIDEO_TITLE` are plain text — no HTML. Values for `KEY_POINTS`, `OUTLINE`, and `DESCRIPTION_SECTION` are allowlist-sanitised by `render_report.py`; emit only the structures shown in the value descriptions above. No `<script>`, `<style>`, `<iframe>`, comments, inline event handlers, non-HTTP URLs, or outline links to a different video.
@@ -221,13 +221,13 @@ The renderer:
 
 **Never `Edit` the payload — always `Write` the whole file.** Populate every field (including `DESCRIPTION_SECTION`, even when empty `""`) in the initial `Write`. If you need to change a field afterwards, re-`Write` the entire payload — do not try to `Edit` a single key. The JSON serializer's exact whitespace is not visible without first `Read`ing the file, so `Edit` calls on the payload almost always fail with "string not found" and burn 3–4 retries guessing tabs vs spaces.
 
-Use the path emitted by preflight — do not reuse a path from a prior run. Preflight puts each run in its own fresh `0700` subdirectory under `~/Downloads/video-lens/.tmp/`, so the `Write` tool sees a brand-new file and never asks you to `Read` it first.
+Use the path emitted by preflight — do not reuse a path from a prior run. Preflight puts each run in its own fresh `0700` subdirectory under `.tmp/` in the output root, so the `Write` tool sees a brand-new file and never asks you to `Read` it first.
 
 1. `Write` the JSON payload to the `PAYLOAD_PATH` captured in Step 1.
-2. Run the renderer (substitute `<PAYLOAD_PATH>` with the literal path from Step 1):
+2. Run the renderer (substitute `<PAYLOAD_PATH>` and `REPORTS_DIR` with the literal paths from Step 1):
 
 ```bash
-python3 "SCRIPTS_DIR/render_report.py" --payload-file <PAYLOAD_PATH> --output-dir ~/Downloads/video-lens/reports/
+python3 "SCRIPTS_DIR/render_report.py" --payload-file <PAYLOAD_PATH> --output-dir "REPORTS_DIR"
 ```
 
 The renderer prints `OUTPUT_PATH: /absolute/path.html` on stdout — read that line from the Bash output and use the absolute path as a literal in Step 5.
@@ -239,17 +239,17 @@ The embedded YouTube player requires HTTP — `file://` URLs are blocked (Error 
 `serve_report.sh` is a bash script — invoke with `bash`, not `python3`.
 
 ```bash
-bash "SCRIPTS_DIR/serve_report.sh" "OUTPUT_PATH" "$HOME/Downloads/video-lens"
+bash "SCRIPTS_DIR/serve_report.sh" "OUTPUT_PATH" "OUTPUT_ROOT"
 ```
 
-The second argument pins the server root to `~/Downloads/video-lens` so the URL is always `http://localhost:8765/reports/<filename>.html`. The script keeps a single server running on port 8765 — all files under `~/Downloads/video-lens` (reports, gallery index, manifest) remain accessible.
+The second argument pins the server root to the `OUTPUT_ROOT` from Step 1 so the URL is always `http://localhost:8765/reports/<filename>.html`. The script keeps a single server running on port 8765 — all files under the output root (reports, gallery index, manifest) remain accessible.
 
 If `serve_report.sh` emits any `ERROR:` line, or fails to print a `HTML_REPORT:` line, follow the Error Handling table and stop. Do NOT proceed to Step 6 or to the final message.
 
 ### 6. Rebuild the index
 
 ```bash
-_gd=$(for d in ~/.agents ~/.claude ~/.copilot ~/.gemini ~/.cursor ~/.windsurf ~/.opencode ~/.codex; do [ -d "$d/skills/video-lens-gallery/scripts" ] && echo "$d/skills/video-lens-gallery/scripts" && break; done); [ -z "$_gd" ] && echo "WARNING: build_index.py not found — index not rebuilt" && exit 0; python3 "$_gd/build_index.py" --dir "$HOME/Downloads/video-lens" || echo "WARNING: index rebuild failed"
+_gd=$(for d in ~/.agents ~/.claude ~/.copilot ~/.gemini ~/.cursor ~/.windsurf ~/.opencode ~/.codex; do [ -d "$d/skills/video-lens-gallery/scripts" ] && echo "$d/skills/video-lens-gallery/scripts" && break; done); [ -z "$_gd" ] && echo "WARNING: build_index.py not found — index not rebuilt" && exit 0; python3 "$_gd/build_index.py" --dir "OUTPUT_ROOT" || echo "WARNING: index rebuild failed"
 ```
 
 Index failure is non-fatal — continue to the final message.

@@ -88,9 +88,18 @@ ALLOWED_CLASSES_BY_TAG = {
     "div": {"video-description"},
 }
 
+def _video_lens_root() -> pathlib.Path:
+    """Output root: $VIDEO_LENS_DIR when set (e.g. an Obsidian vault folder),
+    else ~/Downloads/video-lens. Kept identical in preflight.py."""
+    env = os.environ.get("VIDEO_LENS_DIR", "").strip()
+    if env:
+        return pathlib.Path(env).expanduser()
+    return pathlib.Path.home() / "Downloads" / "video-lens"
+
+
 VIDEO_ID_RE = re.compile(r"^[A-Za-z0-9_-]{11}$")
 DATA_T_RE = re.compile(r"^\d{1,6}$")
-ALLOWED_OUTPUT_ROOT = pathlib.Path.home() / "Downloads" / "video-lens" / "reports"
+ALLOWED_OUTPUT_ROOT = _video_lens_root() / "reports"
 YOUTUBE_HOSTS = {"youtube.com", "www.youtube.com", "m.youtube.com"}
 YOUTUBE_SHORT_HOSTS = {"youtu.be", "www.youtu.be"}
 

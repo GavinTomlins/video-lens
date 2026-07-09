@@ -697,6 +697,34 @@ def test_preflight_emits_newest_duplicate_only(tmp_path, monkeypatch):
     assert preflight.find_duplicate("dQw4w9WgXcQ") == newer
 
 
+def test_preflight_honors_video_lens_dir(tmp_path):
+    """VIDEO_LENS_DIR moves the whole output root: the OUTPUT_ROOT/REPORTS_DIR
+    lines and the payload scaffold must all live under it."""
+    root = tmp_path / "vault" / "videos"
+    env = {**os.environ, "VIDEO_LENS_DIR": str(root)}
+    r = subprocess.run(
+        [sys.executable, str(SCRIPT_DIR / "preflight.py"), "--", "dQw4w9WgXcQ"],
+        capture_output=True, text=True, env=env,
+    )
+    assert r.returncode == 0, r.stderr
+    lines = dict(l.split(": ", 1) for l in r.stdout.splitlines() if ": " in l)
+    assert lines["OUTPUT_ROOT"] == str(root)
+    assert lines["REPORTS_DIR"] == str(root / "reports")
+    assert lines["PAYLOAD_PATH"].startswith(str(root / ".tmp"))
+
+
+def test_preflight_finds_flat_legacy_duplicate(tmp_path, monkeypatch):
+    """Reports sitting flat in the root (old layout / existing vault) must be
+    recognised as duplicates, matching build_index's legacy scan."""
+    import preflight  # type: ignore
+    reports = tmp_path / "reports"
+    reports.mkdir()
+    flat = tmp_path / "2025-01-01-000000-video-lens_dQw4w9WgXcQ_flat.html"
+    flat.write_text("x")
+    monkeypatch.setattr(preflight, "REPORTS_DIR", reports)
+    assert preflight.find_duplicate("dQw4w9WgXcQ") == flat
+
+
 def test_preflight_sweeps_stale_payload_dirs(tmp_path):
     """Payload dirs older than the TTL are removed; fresh ones survive (F1)."""
     import preflight  # type: ignore
@@ -1051,7 +1079,8 @@ def test_renderer_output_dir_outside_clamp_rejected(tmp_path):
     out_dir.mkdir()
     payload = new_shape_payload(GENERATION_DATE="2026-05-17")
     env = {k: v for k, v in os.environ.items()
-           if k not in ("PYTEST_CURRENT_TEST", "VIDEO_LENS_ALLOW_ANY_PATH")}
+           if k not in ("PYTEST_CURRENT_TEST", "VIDEO_LENS_ALLOW_ANY_PATH",
+                        "VIDEO_LENS_DIR")}
     r = subprocess.run(
         [sys.executable, str(SCRIPT_DIR / "render_report.py"),
          "--output-dir", str(out_dir)],
@@ -1061,6 +1090,34 @@ def test_renderer_output_dir_outside_clamp_rejected(tmp_path):
     )
     assert r.returncode != 0
     assert "RENDER_INVALID_OUTPUT_PATH" in r.stderr
+
+
+def test_renderer_clamp_follows_video_lens_dir(tmp_path):
+    """With VIDEO_LENS_DIR set, output under it is allowed and the built-in
+    default root is rejected — the clamp follows the configured root."""
+    root = tmp_path / "vault"
+    env = {k: v for k, v in os.environ.items()
+           if k not in ("PYTEST_CURRENT_TEST", "VIDEO_LENS_ALLOW_ANY_PATH")}
+    env["VIDEO_LENS_DIR"] = str(root)
+    payload = new_shape_payload(GENERATION_DATE="2026-07-09")
+
+    ok = subprocess.run(
+        [sys.executable, str(SCRIPT_DIR / "render_report.py"),
+         "--output-dir", str(root / "reports")],
+        input=json.dumps(payload),
+        capture_output=True, text=True, timeout=10, env=env,
+    )
+    assert ok.returncode == 0, ok.stderr
+    assert list((root / "reports").glob("*.html")), "no report written under custom root"
+
+    rejected = subprocess.run(
+        [sys.executable, str(SCRIPT_DIR / "render_report.py"),
+         "--output-dir", str(pathlib.Path.home() / "Downloads" / "video-lens" / "reports")],
+        input=json.dumps(payload),
+        capture_output=True, text=True, timeout=10, env=env,
+    )
+    assert rejected.returncode != 0
+    assert "RENDER_INVALID_OUTPUT_PATH" in rejected.stderr
 
 
 def test_renderer_positional_path_still_works(tmp_path):
