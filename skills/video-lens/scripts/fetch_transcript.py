@@ -55,6 +55,15 @@ def _fetch_html_metadata(video_id):
         return "", "", "", "", ""
 
 
+def _first_transcript(tlist):
+    """First entry of the transcript list, or a typed error if it is empty —
+    an empty list must not surface as a raw StopIteration traceback."""
+    for t in tlist:
+        return t
+    print("ERROR:NO_TRANSCRIPT: transcript list is empty for this video")
+    sys.exit(1)
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("video_id")
@@ -141,7 +150,7 @@ def main():
                     transcript_obj = t
                     break
             if transcript_obj is None:
-                transcript_obj = next(iter(tlist))
+                transcript_obj = _first_transcript(tlist)
             print(f'LANG_WARN: Requested language "{lang_pref}" not available; using {transcript_obj.language_code}')
     else:
         for t in tlist:
@@ -149,7 +158,7 @@ def main():
                 transcript_obj = t
                 break
         if transcript_obj is None:
-            transcript_obj = next(iter(tlist))
+            transcript_obj = _first_transcript(tlist)
 
     try:
         transcript = transcript_obj.fetch()
