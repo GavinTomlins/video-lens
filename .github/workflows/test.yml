@@ -19,14 +19,22 @@ jobs:
         run: pip install -r requirements.txt
       - name: Warm up python's first network listen
         # The first socket listen by a freshly installed python on a macOS
-        # runner is delayed ~30s (Gatekeeper scan). The serve tests use 5s
-        # deadlines, so listen once here; afterwards binds are instant.
+        # runner is delayed ~30s (Gatekeeper scan), and the first accepted
+        # connection needs to happen once too — listening alone is not
+        # enough. The serve tests use 5s deadlines, so run one full
+        # listen+request cycle here; afterwards loopback serving is instant.
         run: |
           python3 -m http.server 8765 --bind 127.0.0.1 > /dev/null 2>&1 &
           srv=$!
           for i in $(seq 1 90); do
             if lsof -nP -iTCP:8765 -sTCP:LISTEN > /dev/null; then
               echo "listener up after ${i}s"; break
+            fi
+            sleep 1
+          done
+          for i in $(seq 1 6); do
+            if curl -s --max-time 10 http://127.0.0.1:8765/ -o /dev/null; then
+              echo "first request served (attempt ${i})"; break
             fi
             sleep 1
           done
