@@ -26,24 +26,35 @@ task install-raycast AGENT=copilot          # installs Raycast script for a spec
 video-lens/
   CLAUDE.md
   Taskfile.yml
+  pytest.ini
   requirements.txt
   scripts/
-    raycast-video-lens.sh  ← Raycast script (source of truth)
-    yt_template_dev.py     ← dev server helper
+    raycast-video-lens.sh    ← Raycast script (source of truth)
+    yt_template_dev.py       ← dev server helper
   skills/
     video-lens/
-      SKILL.md             ← skill prompt (source of truth)
-      template.html        ← HTML report template (source of truth)
+      SKILL.md               ← skill prompt (source of truth)
+      template.html          ← HTML report template (source of truth)
+      scripts/               ← helper scripts bundled with the skill
+        preflight.py           (URL→ID, lang map, dup check, payload scaffolding)
+        fetch_transcript.py
+        fetch_metadata.py
+        transcribe_local.py    (local Whisper fallback)
+        render_report.py
+        serve_report.sh
     video-lens-gallery/
-      SKILL.md             ← gallery skill prompt (source of truth)
-      index.html           ← gallery viewer (source of truth)
+      SKILL.md               ← gallery skill prompt (source of truth)
+      index.html             ← gallery viewer (source of truth)
       scripts/
-        backfill_meta.py   ← backfills meta blocks into old reports
-        build_index.py     ← builds manifest.json and copies index.html
+        backfill_meta.py     ← backfills meta blocks into old reports
+        build_index.py       ← builds manifest.json and copies index.html
+  tests/                     ← fast integration tests (`task test`)
 ```
 
 ## Dev
 
 ```bash
-task dev   # renders template → ~/Downloads/sample_output.html, serves at http://localhost:8765/sample_output.html
+task dev   # renders template → ~/Downloads/video-lens/reports/video-lens_sample_output.html,
+           # serves at http://localhost:8765/reports/video-lens_sample_output.html
+task test  # fast test suite (no LLM, no network)
 ```

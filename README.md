@@ -163,7 +163,7 @@ To iterate on `skills/video-lens/template.html` without running a real video:
 task dev
 ```
 
-Opens a rendered sample report at `http://localhost:8765/sample_output.html`.
+Opens a rendered sample report at `http://localhost:8765/reports/video-lens_sample_output.html`.
 
 ---
 
@@ -190,7 +190,8 @@ video-lens/
         build_index.py    ← builds manifest.json and copies index.html
   scripts/
     raycast-video-lens.sh ← Raycast script (source of truth)
-    yt_template_dev.py← Dev server helper
+    yt_template_dev.py    ← Dev server helper
+  tests/              ← fast integration tests (`task test`)
   Taskfile.yml
   requirements.txt
 ```
