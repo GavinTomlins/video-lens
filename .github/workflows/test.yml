@@ -17,28 +17,11 @@ jobs:
           python-version: "3.12"
       - name: Install dependencies
         run: pip install -r requirements.txt
-      - name: Warm up python's first network listen
-        # The first socket listen by a freshly installed python on a macOS
-        # runner is delayed ~30s (Gatekeeper scan), and the first accepted
-        # connection needs to happen once too — listening alone is not
-        # enough. The serve tests use 5s deadlines, so run one full
-        # listen+request cycle here; afterwards loopback serving is instant.
-        run: |
-          python3 -m http.server 8765 --bind 127.0.0.1 > /dev/null 2>&1 &
-          srv=$!
-          for i in $(seq 1 90); do
-            if lsof -nP -iTCP:8765 -sTCP:LISTEN > /dev/null; then
-              echo "listener up after ${i}s"; break
-            fi
-            sleep 1
-          done
-          for i in $(seq 1 6); do
-            if curl -s --max-time 10 http://127.0.0.1:8765/ -o /dev/null; then
-              echo "first request served (attempt ${i})"; break
-            fi
-            sleep 1
-          done
-          kill $srv 2>/dev/null || true
-          sleep 1
       - name: Run fast test suite (no LLM, no network)
+        env:
+          # Every fresh http.server on this runner stalls ~35s in
+          # socket.getfqdn() before listening (reverse lookup of 127.0.0.1
+          # times out via mDNSResponder; /etc/hosts is not consulted).
+          # Give the serve tests a deadline that absorbs the stall.
+          VIDEO_LENS_SERVE_DEADLINE: "60"
         run: python -m pytest tests/ -v -m "not slow"

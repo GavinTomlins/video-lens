@@ -427,6 +427,23 @@ def test_sanitiser_rejects_nested_anchor_without_href_in_description():
     assert "a href missing" in exc.value.detail
 
 
+# The first listen of a python http.server on a GitHub macOS runner stalls
+# ~35s inside socket.getfqdn() (the reverse lookup of 127.0.0.1 goes through
+# mDNSResponder and times out; /etc/hosts is not consulted). Locally the 5s
+# default is plenty; CI sets VIDEO_LENS_SERVE_DEADLINE=60.
+SERVE_DEADLINE = float(os.environ.get("VIDEO_LENS_SERVE_DEADLINE", "5"))
+
+
+def _wait_for_http(url, deadline=None):
+    end = time.monotonic() + (deadline if deadline is not None else SERVE_DEADLINE)
+    while time.monotonic() < end:
+        try:
+            return urllib.request.urlopen(url, timeout=1)
+        except Exception:
+            time.sleep(0.1)
+    raise AssertionError(f"server never became reachable at {url}")
+
+
 def test_render_and_serve(tmp_path):
     """Fast, no-network check: render with canned data and verify HTTP serve."""
     out = tmp_path / "report.html"
@@ -464,8 +481,7 @@ def test_render_and_serve(tmp_path):
         )
         assert r.returncode == 0, f"serve_report failed:\n{r.stderr}"
         assert f"HTML_REPORT: {out}" in r.stdout
-        time.sleep(0.5)
-        resp = urllib.request.urlopen(f"http://127.0.0.1:8765/{out.name}", timeout=5)
+        resp = _wait_for_http(f"http://127.0.0.1:8765/{out.name}")
         assert resp.status == 200
     finally:
         subprocess.run(["bash", "-c", "for p in $(lsof -ti:8765 -sTCP:LISTEN 2>/dev/null); do ps -p \"$p\" -o args= 2>/dev/null | grep -q http.server && kill \"$p\"; done 2>/dev/null || true"],
@@ -488,23 +504,13 @@ def test_serve_takes_over_untracked_server(tmp_path):
         "VIDEO_LENS_META":     SAMPLE_META,
     }, str(out), template_path=TEMPLATE)
 
-    def _wait_for_server(deadline=5.0):
-        end = time.monotonic() + deadline
-        while time.monotonic() < end:
-            try:
-                return urllib.request.urlopen(
-                    f"http://127.0.0.1:8765/{out.name}", timeout=1)
-            except Exception:
-                time.sleep(0.1)
-        raise AssertionError("server on 8765 never became reachable")
-
     stray = subprocess.Popen(
         [sys.executable, "-m", "http.server", "8765", "--bind", "127.0.0.1",
          "--directory", str(tmp_path)],
         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
     )
     try:
-        _wait_for_server()
+        _wait_for_http(f"http://127.0.0.1:8765/{out.name}")
         r = subprocess.run(
             ["bash", str(SCRIPT_DIR / "serve_report.sh"), str(out)],
             capture_output=True, text=True, timeout=10,
@@ -512,7 +518,7 @@ def test_serve_takes_over_untracked_server(tmp_path):
         )
         assert r.returncode == 0, f"serve_report failed:\n{r.stderr}"
         assert f"HTML_REPORT: {out}" in r.stdout
-        resp = _wait_for_server()
+        resp = _wait_for_http(f"http://127.0.0.1:8765/{out.name}")
         assert resp.status == 200
     finally:
         stray.kill()
