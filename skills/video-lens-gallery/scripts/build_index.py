@@ -121,6 +121,10 @@ def main():
     if reports_subdir.is_dir():
         for path in sorted(reports_subdir.glob("*video-lens*.html"),
                            key=lambda p: p.name, reverse=True):
+            # `task dev` renders its fake sample report into the real
+            # reports/ dir — never index it as a real report.
+            if "sample_output" in path.name:
+                continue
             meta = extract_meta(path)
             if meta is None:
                 skipped += 1
@@ -137,6 +141,8 @@ def main():
     for path in sorted(scan_dir.glob("*video-lens*.html"),
                        key=lambda p: p.name, reverse=True):
         if path.name == "index.html" or path.name in seen:
+            continue
+        if "sample_output" in path.name:
             continue
         meta = extract_meta(path)
         if meta is None:

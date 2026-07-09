@@ -590,6 +590,30 @@ def test_build_index_folds_tags_in_manifest(tmp_path):
     assert manifest["reports"][0]["tags"] == ["ai coding", "productivity"]
 
 
+def test_build_index_excludes_dev_sample_report(tmp_path):
+    """`task dev` renders video-lens_sample_output.html into the real reports/
+    dir; the index must never list it as a real report."""
+    BUILD_INDEX = GALLERY_SCRIPT_DIR / "build_index.py"
+    meta = json.dumps({"videoId": "bjdBVZa66oU", "title": "Sample", "tags": [], "keywords": []})
+    block = f'<html><body><script type="application/json" id="video-lens-meta">{meta}</script></body></html>'
+    reports_dir = tmp_path / "reports"
+    reports_dir.mkdir()
+    (reports_dir / "video-lens_sample_output.html").write_text(block, encoding="utf-8")
+    (tmp_path / "video-lens_sample_output.html").write_text(block, encoding="utf-8")
+    real_meta = json.dumps({"videoId": "bjdBVZa66oU", "title": "Real", "tags": [], "keywords": []})
+    (reports_dir / "2025-01-01-000000-video-lens_real.html").write_text(
+        block.replace(meta, real_meta), encoding="utf-8")
+
+    r = subprocess.run(
+        [sys.executable, str(BUILD_INDEX), "--dir", str(tmp_path)],
+        capture_output=True, text=True,
+    )
+    assert r.returncode == 0, f"build_index failed:\n{r.stderr}"
+    manifest = json.loads((tmp_path / "manifest.json").read_text(encoding="utf-8"))
+    assert manifest["count"] == 1
+    assert manifest["reports"][0]["title"] == "Real"
+
+
 # --- preflight ---
 
 from preflight import (  # noqa: E402
