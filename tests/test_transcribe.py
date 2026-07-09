@@ -159,11 +159,42 @@ def test_leading_dash_video_id_accepted_with_separator(tmp_path):
     stub.write_text("raise ImportError('stubbed out for test')\n")
     env = {**os.environ, "PYTHONPATH": str(tmp_path)}
     result = subprocess.run(
-        [sys.executable, str(TRANSCRIBE), "--model", "tiny", "--", "-Abc123XYZ_w"],
+        [sys.executable, str(TRANSCRIBE), "--model", "tiny", "--", "-Abc123XYZ_"],
         capture_output=True, text=True, env=env,
     )
     assert result.returncode == 1
     assert result.stdout.startswith("ERROR:WHISPER_MISSING")
+
+
+@pytest.mark.parametrize("bad_id", [
+    "https://youtube.com/watch?v=bjdBVZa66oU",  # URL, not an id
+    "ytsearch:cat videos",                       # yt-dlp search prefix
+    "abc",                                       # too short
+    "-Abc123XYZ_w",                              # 12 chars
+])
+def test_non_video_id_input_rejected(bad_id):
+    """Only a bare 11-char video id may reach yt-dlp — URLs and search
+    prefixes must be refused before any download is attempted."""
+    result = subprocess.run(
+        [sys.executable, str(TRANSCRIBE), "--", bad_id],
+        capture_output=True, text=True,
+    )
+    assert result.returncode == 1
+    assert result.stdout.startswith("ERROR:INVALID_INPUT")
+
+
+def test_supported_platform_gate(monkeypatch):
+    """Off Apple Silicon macOS the script must refuse with a clear message
+    instead of suggesting a pip install that cannot work."""
+    import transcribe_local as tl
+    assert tl._supported_platform() == (
+        sys.platform == "darwin" and __import__("platform").machine() == "arm64"
+    )
+    monkeypatch.setattr(tl.sys, "platform", "linux")
+    assert not tl._supported_platform()
+    monkeypatch.setattr(tl.sys, "platform", "darwin")
+    monkeypatch.setattr(tl.platform, "machine", lambda: "x86_64")
+    assert not tl._supported_platform()
 
 
 def test_audio_download_failed_error(tmp_path):

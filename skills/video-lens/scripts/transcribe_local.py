@@ -10,10 +10,14 @@ Usage: python3 transcribe_local.py VIDEO_ID [--language LANG] [--model SIZE]
 import argparse
 import datetime
 import pathlib
+import platform
+import re
 import shutil
 import subprocess
 import sys
 import tempfile
+
+VIDEO_ID_RE = re.compile(r"^[A-Za-z0-9_-]{11}$")
 
 MODEL_REPOS = {
     "tiny": "mlx-community/whisper-tiny-mlx",
@@ -43,11 +47,18 @@ def _format_timestamp(seconds):
     return f"[{h}:{m2:02d}:{s2:02d}]" if h > 0 else f"[{m2}:{s2:02d}]"
 
 
+def _supported_platform():
+    return sys.platform == "darwin" and platform.machine() == "arm64"
+
+
 def _download_audio(video_id, tmp_dir):
+    # Fixed URL, not the raw arg: yt-dlp positional args also accept arbitrary
+    # URLs and ytsearch: prefixes, which must never reach it from here.
+    url = f"https://www.youtube.com/watch?v={video_id}"
     result = subprocess.run(
         ["yt-dlp", "-f", "bestaudio[ext=m4a]/bestaudio",
          "--socket-timeout", "30",
-         "-o", f"{tmp_dir}/audio.%(ext)s", "--", video_id],
+         "-o", f"{tmp_dir}/audio.%(ext)s", "--", url],
         capture_output=True, text=True,
     )
     if result.returncode != 0:
@@ -69,13 +80,25 @@ def main():
     parser.add_argument("--model", default="medium")
     args = parser.parse_args()
 
+    if not VIDEO_ID_RE.fullmatch(args.video_id):
+        print(f"ERROR:INVALID_INPUT: not a YouTube video id: {args.video_id!r} — pass the 11-character id, not a URL")
+        sys.exit(1)
+
     repo = model_repo(args.model)
     lang = normalize_language(args.language)
 
+    if not _supported_platform():
+        print("ERROR:WHISPER_MISSING: local transcription requires mlx-whisper, which only runs on Apple Silicon macOS")
+        sys.exit(1)
     try:
         import mlx_whisper
     except ImportError:
         print("ERROR:WHISPER_MISSING: pip install mlx-whisper")
+        sys.exit(1)
+    except Exception as e:
+        # mlx can import-fail past ImportError (e.g. Metal init) — keep the
+        # ERROR: line contract so SKILL.md routing sees it, not a traceback.
+        print(f"ERROR:WHISPER_MISSING: mlx-whisper failed to load: {type(e).__name__}: {e}")
         sys.exit(1)
     if shutil.which("ffmpeg") is None:
         print("ERROR:FFMPEG_MISSING: brew install ffmpeg")
