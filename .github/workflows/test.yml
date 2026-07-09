@@ -17,5 +17,10 @@ jobs:
           python-version: "3.12"
       - name: Install dependencies
         run: pip install -r requirements.txt
+      - name: Disable macOS application firewall
+        # The runner image ships with the firewall on, which silently blocks
+        # python http.server from accepting even loopback connections — the
+        # serve_report.sh tests time out without this.
+        run: sudo /usr/libexec/ApplicationFirewall/socketfilterfw --setglobalstate off
       - name: Run fast test suite (no LLM, no network)
         run: python -m pytest tests/ -v -m "not slow"
