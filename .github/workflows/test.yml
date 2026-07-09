@@ -1,0 +1,21 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    # macOS runner: matches the skill's target platform (serve_report.sh uses
+    # lsof/BSD ps; the whisper fallback is Apple Silicon only)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Run fast test suite (no LLM, no network)
+        run: python -m pytest tests/ -v -m "not slow"
