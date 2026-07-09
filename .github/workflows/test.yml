@@ -17,10 +17,20 @@ jobs:
           python-version: "3.12"
       - name: Install dependencies
         run: pip install -r requirements.txt
-      - name: Disable macOS application firewall
-        # The runner image ships with the firewall on, which silently blocks
-        # python http.server from accepting even loopback connections — the
-        # serve_report.sh tests time out without this.
-        run: sudo /usr/libexec/ApplicationFirewall/socketfilterfw --setglobalstate off
+      - name: Warm up python's first network listen
+        # The first socket listen by a freshly installed python on a macOS
+        # runner is delayed ~30s (Gatekeeper scan). The serve tests use 5s
+        # deadlines, so listen once here; afterwards binds are instant.
+        run: |
+          python3 -m http.server 8765 --bind 127.0.0.1 > /dev/null 2>&1 &
+          srv=$!
+          for i in $(seq 1 90); do
+            if lsof -nP -iTCP:8765 -sTCP:LISTEN > /dev/null; then
+              echo "listener up after ${i}s"; break
+            fi
+            sleep 1
+          done
+          kill $srv 2>/dev/null || true
+          sleep 1
       - name: Run fast test suite (no LLM, no network)
         run: python -m pytest tests/ -v -m "not slow"
