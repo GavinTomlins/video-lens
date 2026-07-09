@@ -121,7 +121,7 @@ def find_template() -> pathlib.Path:
         if p.exists():
             return p
     raise FileNotFoundError(
-        "template.html not found — install from github.com/kar2phi/video-lens (see Bundled scripts in SKILL.md)"
+        "template.html not found — install from github.com/GavinTomlins/video-lens (see Bundled scripts in SKILL.md)"
     )
 
 

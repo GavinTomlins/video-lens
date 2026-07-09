@@ -51,7 +51,7 @@ Step 2 has two parts (2a transcript, 2b yt-dlp metadata) that depend only on `VI
 Run preflight, then read the prefixed lines from its stdout. Save `VIDEO_ID`, `LANG_CODE`, `START_EPOCH`, `SCRIPTS_DIR`, `PAYLOAD_PATH`, and the `EXISTING_TAGS` list (if present) for later steps. The `SCRIPTS_DIR` value replaces the discovery boilerplate from Step 1 in subsequent steps — substitute it as a literal path.
 
 ```bash
-_sd=$(for d in ~/.agents ~/.claude ~/.copilot ~/.gemini ~/.cursor ~/.windsurf ~/.opencode ~/.codex; do [ -d "$d/skills/video-lens/scripts" ] && echo "$d/skills/video-lens/scripts" && break; done); [ -z "$_sd" ] && echo "Scripts not found — install from github.com/kar2phi/video-lens (see Bundled scripts above)" && exit 1; python3 "$_sd/preflight.py" -- "$USER_INPUT"
+_sd=$(for d in ~/.agents ~/.claude ~/.copilot ~/.gemini ~/.cursor ~/.windsurf ~/.opencode ~/.codex; do [ -d "$d/skills/video-lens/scripts" ] && echo "$d/skills/video-lens/scripts" && break; done); [ -z "$_sd" ] && echo "Scripts not found — install from github.com/GavinTomlins/video-lens (see Bundled scripts above)" && exit 1; python3 "$_sd/preflight.py" -- "$USER_INPUT"
 ```
 
 Substitute `$USER_INPUT` with the user's URL/ID and any language hint as a single argument (preflight splits internally on the space).

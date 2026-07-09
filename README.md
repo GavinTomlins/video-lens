@@ -44,7 +44,7 @@ video-lens is a coding agent skill that fetches a YouTube transcript and generat
 
 video-lens uses the universal [SKILL.md](https://agents.md/) format — any agent that supports it can run this skill.
 
-[![Install with skills CLI](https://img.shields.io/badge/skills-kar2phi%2Fvideo--lens-blue?logo=npm)](https://skills.sh/kar2phi/video-lens)
+[![Install with skills CLI](https://img.shields.io/badge/skills-GavinTomlins%2Fvideo--lens-blue?logo=npm)](https://skills.sh/GavinTomlins/video-lens)
 
 ---
 
@@ -53,7 +53,7 @@ video-lens uses the universal [SKILL.md](https://agents.md/) format — any agen
 ### Option A — skills CLI (recommended)
 
 ```bash
-npx skills add kar2phi/video-lens
+npx skills add GavinTomlins/video-lens
 pip install youtube-transcript-api yt-dlp
 
 # Optional: local transcription fallback on Apple Silicon
@@ -70,7 +70,7 @@ Then use `/video-lens <url>` in any supported agent.
 Clone the repo and use `task install-skill-local` to copy the skill (prompt, template, and scripts) to a specific agent dir:
 
 ```bash
-git clone https://github.com/kar2phi/video-lens.git
+git clone https://github.com/GavinTomlins/video-lens.git
 cd video-lens
 task install-skill-local AGENT=claude   # or copilot, gemini, cursor, …
 pip install -r requirements.txt
@@ -87,7 +87,7 @@ brew install ffmpeg
 #### 1. Clone and install Python dependencies
 
 ```bash
-git clone https://github.com/kar2phi/video-lens.git
+git clone https://github.com/GavinTomlins/video-lens.git
 cd video-lens
 task install-libraries
 
@@ -203,6 +203,10 @@ video-lens/
 ## Contributing
 
 PRs welcome. Keep the skill prompt in `skills/video-lens/SKILL.md` and the HTML template in `skills/video-lens/template.html` — those are the sources of truth.
+
+## Credits
+
+video-lens was created by [kar2phi](https://github.com/kar2phi/video-lens). This repository is a standalone fork.
 
 ## License
 

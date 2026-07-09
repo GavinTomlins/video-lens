@@ -29,8 +29,8 @@ done)
 _gd=$(for d in ~/.agents ~/.claude ~/.copilot ~/.gemini ~/.cursor ~/.windsurf ~/.opencode ~/.codex; do
   [ -d "$d/skills/video-lens-gallery/scripts" ] && echo "$d/skills/video-lens-gallery/scripts" && break
 done)
-[ -z "$_sd" ] && echo "video-lens skill not found — install it first: npx skills add kar2phi/video-lens" && exit 1
-[ -z "$_gd" ] && echo "video-lens-gallery skill not found — install it first: npx skills add kar2phi/video-lens" && exit 1
+[ -z "$_sd" ] && echo "video-lens skill not found — install it first: npx skills add GavinTomlins/video-lens" && exit 1
+[ -z "$_gd" ] && echo "video-lens-gallery skill not found — install it first: npx skills add GavinTomlins/video-lens" && exit 1
 ```
 
 ## Step 2 — Backfill metadata (only if requested)

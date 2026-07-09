@@ -113,7 +113,7 @@ tasks:
 
   install-skill:
     desc: Install skill for all detected agents via npx skills CLI
-    cmd: npx skills add kar2phi/video-lens
+    cmd: npx skills add GavinTomlins/video-lens
 
   install-skill-local:
     desc: "Sync skill files from repo to a local agent skill dir (AGENT=claude|agents|gemini|opencode|cursor)"
