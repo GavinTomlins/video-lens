@@ -26,44 +26,57 @@ fi
 
 ytURL="$(printf '%s' "$ytURL" | tr -dc 'A-Za-z0-9/:?=&._%-')"
 
-osascript - "$ytURL" "$HOME/Downloads" "$2" <<'EOF'
+# Model aliases resolve to the current model of each tier — no dated IDs to rot
+case "$2" in
+  haiku|opus) modelId="$2" ;;
+  *)          modelId="sonnet" ;;
+esac
+
+# Detect iTerm2 from bash, and keep the iTerm2 tell-block in a script that is
+# only compiled when iTerm2 exists: AppleScript resolves `tell application
+# "iTerm2"` terminology at compile time, so a machine without iTerm2 would hit
+# a "Where is iTerm2?" locate prompt even if the branch never runs.
+if pgrep -xq iTerm2 \
+   || [ -d "/Applications/iTerm.app" ] || [ -d "$HOME/Applications/iTerm.app" ]; then
+  osascript - "$ytURL" "$HOME/Downloads" "$modelId" <<'EOF'
 on run argv
   set ytURL to item 1 of argv
   set outputDir to item 2 of argv
-  set modelInput to item 3 of argv
-  if modelInput is "haiku" then
-    set modelId to "claude-haiku-4-5-20251001"
-  else if modelInput is "opus" then
-    set modelId to "claude-opus-4-6"
-  else
-    set modelId to "claude-sonnet-4-6"
-  end if
+  set modelId to item 3 of argv
   set cmd to "cd " & quoted form of outputDir & " && claude --dangerously-skip-permissions --allowedTools \"Bash,Read\" --model " & modelId & " \"/video-lens " & ytURL & "\""
 
-  if application "iTerm2" is running or (exists application "iTerm2") then
-    tell application "iTerm2"
-      activate
+  tell application "iTerm2"
+    activate
 
-      if (count of windows) = 0 then
-        set newWindow to (create window with default profile)
-        tell current session of newWindow
+    if (count of windows) = 0 then
+      set newWindow to (create window with default profile)
+      tell current session of newWindow
+        write text cmd
+      end tell
+    else
+      tell current window
+        create tab with default profile
+        tell current session
           write text cmd
         end tell
-      else
-        tell current window
-          create tab with default profile
-          tell current session
-            write text cmd
-          end tell
-        end tell
-      end if
+      end tell
+    end if
 
-    end tell
-  else
-    tell application "Terminal"
-      activate
-      do script cmd
-    end tell
-  end if
+  end tell
 end run
 EOF
+else
+  osascript - "$ytURL" "$HOME/Downloads" "$modelId" <<'EOF'
+on run argv
+  set ytURL to item 1 of argv
+  set outputDir to item 2 of argv
+  set modelId to item 3 of argv
+  set cmd to "cd " & quoted form of outputDir & " && claude --dangerously-skip-permissions --allowedTools \"Bash,Read\" --model " & modelId & " \"/video-lens " & ytURL & "\""
+
+  tell application "Terminal"
+    activate
+    do script cmd
+  end tell
+end run
+EOF
+fi
